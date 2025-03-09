@@ -2,20 +2,27 @@
   "name": "api",
   "version": "1.0.0",
   "main": "dist/app.js",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/app.js",
-    "dev": "nodemon src/app.ts"
+    "dev": "pnpm tsx watch src/app.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "github:sam-ayo/anthropic-sdk-typescript",
     "@modelcontextprotocol/sdk": "^1.6.1",
+    "@smithery/sdk": "^1.0.2",
     "@types/express": "^5.0.0",
-    "express": "^4.21.2"
+    "ai": "^4.1.50",
+    "better-sse": "^0.14.1",
+    "express": "^4.21.2",
+    "tsx": "^4.19.3"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "nodemon": "^3.1.9"
   }
 }
