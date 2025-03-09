@@ -28,13 +28,13 @@ const PurePreviewMessage = ({
         <div
           className={cn(
             "flex gap-4 w-full group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl",
-            "group-data-[role=user]/message:w-fit",
+            "group-data-[role=user]/message:w-fit"
           )}
         >
           {message.role === "assistant" && (
-            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-accent">
               <div className="translate-y-px">
-                <SparklesIcon size={14} />
+                <SparklesIcon size={14} className="text-foreground" />
               </div>
             </div>
           )}
@@ -75,7 +75,7 @@ const PurePreviewMessage = ({
                       ) : toolName === "webSearch" ? (
                         state === "result" ? null : (
                           <motion.div
-                            className="font-mono text-xs p-2 bg-zinc-50 animate-pulse"
+                            className="font-mono text-xs p-2 bg-accent text-accent-foreground animate-pulse"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ duration: 0.3 }}
@@ -110,11 +110,11 @@ export const PreviewMessage = memo(
     if (
       !equal(
         prevProps.message.toolInvocations,
-        nextProps.message.toolInvocations,
+        nextProps.message.toolInvocations
       )
     )
       return false;
 
     return true;
-  },
+  }
 );

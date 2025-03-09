@@ -21,6 +21,28 @@ interface Tool {
   description: string;
 }
 
+function TruncatedDescription({ text }: { text: string }) {
+  const words = text.split(" ");
+  const truncated =
+    words.length > 20 ? words.slice(0, 20).join(" ") + "..." : text;
+
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <p className="text-sm text-muted-foreground">{truncated}</p>
+        </TooltipTrigger>
+        <TooltipContent
+          side="right"
+          className="max-w-[300px] whitespace-normal"
+        >
+          <p className="text-sm">{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function Tools({ tools }: { tools: Tool[] }) {
   const [showModal, setShowModal] = useState(false);
 
@@ -53,9 +75,7 @@ export function Tools({ tools }: { tools: Tool[] }) {
               {tools?.map((tool) => (
                 <div key={uniqueId(`tool-${tool.id}`)} className="space-y-2">
                   <h3 className="font-semibold">{tool.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {tool.description}
-                  </p>
+                  <TruncatedDescription text={tool.description} />
                 </div>
               ))}
             </div>

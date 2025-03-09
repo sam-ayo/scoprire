@@ -19,6 +19,30 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { ServerConfigForm } from "./server-config-form";
 
+interface ToolParameter {
+  type: string;
+  description: string;
+  required?: boolean;
+  properties?: Record<string, ToolParameter>;
+}
+
+interface Tool {
+  id: string;
+  name: string;
+  description: string;
+  parameters: {
+    type: string;
+    properties: Record<string, ToolParameter>;
+    required: string[];
+  };
+}
+
+interface ServerConnection {
+  type: string;
+  deploymentUrl: string;
+  configSchema?: Record<string, ToolParameter>;
+}
+
 interface MCPServer {
   qualifiedName: string;
   displayName: string;
@@ -30,15 +54,21 @@ interface MCPServer {
 
 interface ConfigSchema {
   type: string;
-  properties: Record<
-    string,
-    {
-      type: string;
-      description?: string;
-      required?: boolean;
-    }
-  >;
-  required?: string[];
+  properties: Record<string, ToolParameter>;
+  required: string[];
+}
+
+interface ServerConfig {
+  connection: ServerConnection;
+  config: Record<string, unknown>;
+  displayName: string;
+  qualifiedName: string;
+  tools: Tool[];
+}
+
+interface ConnectResponse {
+  tools: Tool[];
+  error?: string;
 }
 
 export function ServerCard({ server }: { server: MCPServer }) {
@@ -46,7 +76,8 @@ export function ServerCard({ server }: { server: MCPServer }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfigForm, setShowConfigForm] = useState(false);
   const [configSchema, setConfigSchema] = useState<ConfigSchema | null>(null);
-  const [pendingConnection, setPendingConnection] = useState<any>(null);
+  const [pendingConnection, setPendingConnection] =
+    useState<ServerConnection | null>(null);
 
   const startServerConnection = async () => {
     try {
@@ -101,8 +132,8 @@ export function ServerCard({ server }: { server: MCPServer }) {
   };
 
   const connectToServer = async (
-    connection: any,
-    config: Record<string, any>
+    connection: ServerConnection,
+    config: Record<string, unknown>
   ) => {
     try {
       setIsLoading(true);
@@ -122,7 +153,7 @@ export function ServerCard({ server }: { server: MCPServer }) {
         }
       );
 
-      const connectData = await connectResponse.json();
+      const connectData = (await connectResponse.json()) as ConnectResponse;
       console.log("Server connect response:", connectData);
 
       if (!connectResponse.ok) {
@@ -143,19 +174,38 @@ export function ServerCard({ server }: { server: MCPServer }) {
         console.warn("Received empty tools array from server");
       }
 
-      // Store the tools in localStorage
-      const existingTools = JSON.parse(
-        localStorage.getItem("chatTools") || "[]"
-      );
-      const newTools = [...existingTools, ...connectData.tools];
-      localStorage.setItem("chatTools", JSON.stringify(newTools));
+      // Store the server configuration in localStorage
+      const serverConfig: ServerConfig = {
+        connection,
+        config,
+        displayName: server.displayName,
+        qualifiedName: server.qualifiedName,
+        tools: connectData.tools,
+      };
 
-      toast.success(`Added ${server.displayName} tools to chat`);
+      const existingServers = JSON.parse(
+        localStorage.getItem("mcpServers") || "[]"
+      ) as ServerConfig[];
+
+      // Check if server already exists and update it, or add new
+      const serverIndex = existingServers.findIndex(
+        (s) => s.qualifiedName === server.qualifiedName
+      );
+
+      if (serverIndex !== -1) {
+        existingServers[serverIndex] = serverConfig;
+      } else {
+        existingServers.push(serverConfig);
+      }
+
+      localStorage.setItem("mcpServers", JSON.stringify(existingServers));
+
+      toast.success(`Connected to ${server.displayName}`);
       router.push("/");
-    } catch (error) {
-      console.error("Error connecting to server:", error);
+    } catch (err: unknown) {
+      console.error("Error connecting to server:", err);
       toast.error(
-        error instanceof Error ? error.message : "Failed to connect to server"
+        err instanceof Error ? err.message : "Failed to connect to server"
       );
     } finally {
       setIsLoading(false);

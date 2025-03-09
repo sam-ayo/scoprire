@@ -14,18 +14,23 @@ interface StreamOptions {
   selectedTools?: string[]; // Optional array of tool names to enable
 }
 
+interface Tool {
+  name: string;
+  inputSchema: any;
+}
+
 const llmStreamResponse = async (
   messages: UIMessage[],
   res: Response,
+  tools: Tool[],
   options: StreamOptions = {}
 ) => {
-  const { tools: mcpTools } = await mcpClient.listTools();
   const pendingOperations: Promise<void>[] = [];
 
   // Filter tools based on user selection if provided
   const availableTools = options.selectedTools
-    ? mcpTools.filter((tool) => options.selectedTools?.includes(tool.name))
-    : mcpTools;
+    ? tools.filter((tool) => options.selectedTools?.includes(tool.name))
+    : tools;
 
   llmClient.messages
     .stream({

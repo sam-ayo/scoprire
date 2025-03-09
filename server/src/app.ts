@@ -12,6 +12,11 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+interface Tool {
+  name: string;
+  inputSchema: any;
+}
+
 const SMITHERY_API_KEY = process.env.SMITHERY_API_KEY;
 
 interface ServerToolsResponse {
@@ -51,8 +56,25 @@ const serverHandler: RequestHandler = async (req, res) => {
 };
 
 const toolsHandler: RequestHandler = async (_req, res) => {
-  const tools = await mcpClient.listTools();
-  res.json(tools);
+  try {
+    // Check if client has a transport connection
+    if (!mcpClient.transport) {
+      // Return empty tools array instead of error when not connected
+      res.json({ tools: [] });
+      return;
+    }
+
+    const tools = await mcpClient.listTools();
+    res.json(tools);
+  } catch (error) {
+    console.error("Error fetching tools:", error);
+    if (error instanceof Error && error.message === "Not connected") {
+      // Return empty tools array for "Not connected" error
+      res.json({ tools: [] });
+    } else {
+      res.status(500).json({ error: "Failed to fetch tools" });
+    }
+  }
 };
 
 const chatHandler: RequestHandler = async (req, res) => {
@@ -62,9 +84,23 @@ const chatHandler: RequestHandler = async (req, res) => {
   };
 
   try {
-    llmStreamResponse(messages, res);
+    // Fetch tools before calling llmStreamResponse
+    let tools: Tool[] = [];
+    try {
+      const toolsResponse = await mcpClient.listTools();
+      tools = toolsResponse.tools;
+    } catch (error) {
+      console.warn(
+        "Could not fetch tools, proceeding with empty tools array:",
+        error
+      );
+    }
+
+    // Proceed with chat even if no tools are available
+    llmStreamResponse(messages, res, tools);
   } catch (error) {
-    console.log("Error: ", error);
+    console.error("Error in chat handler:", error);
+    res.status(500).json({ error: "Failed to process chat request" });
     return;
   }
 };
@@ -73,7 +109,8 @@ const serverToolsHandler: RequestHandler = async (req, res) => {
   try {
     const { qualifiedName } = req.body;
     if (!qualifiedName) {
-      return res.status(400).json({ error: "qualifiedName is required" });
+      res.status(400).json({ error: "qualifiedName is required" });
+      return;
     }
 
     const response = await fetch(
@@ -96,15 +133,16 @@ const serverToolsHandler: RequestHandler = async (req, res) => {
     // Find WebSocket connection
     const wsConnection = data.connections.find((conn) => conn.type === "ws");
     if (!wsConnection) {
-      return res
+      res
         .status(400)
         .json({ error: "No WebSocket connection available for this server" });
+      return;
     }
 
-    return res.json({ ...data, connections: [wsConnection] });
+    res.json({ ...data, connections: [wsConnection] });
   } catch (error) {
     console.error("Error fetching server tools:", error);
-    return res.status(500).json({ error: "Failed to fetch server tools" });
+    res.status(500).json({ error: "Failed to fetch server tools" });
   }
 };
 
@@ -116,15 +154,17 @@ const connectHandler: RequestHandler = async (req, res) => {
     };
 
     if (!connection || !connection.deploymentUrl) {
-      return res
+      res
         .status(400)
         .json({ error: "connection with deploymentUrl is required" });
+      return;
     }
 
     if (connection.type !== "ws") {
-      return res
+      res
         .status(400)
         .json({ error: "Only WebSocket connections are supported" });
+      return;
     }
 
     try {
@@ -140,17 +180,17 @@ const connectHandler: RequestHandler = async (req, res) => {
       const tools = await mcpClient.listTools();
       console.log("Tools received:", tools);
 
-      return res.json({
+      res.json({
         message: "Successfully connected to server",
         tools: tools.tools,
       });
     } catch (error) {
       console.error("Error connecting to server:", error);
-      return res.status(500).json({ error: "Failed to connect to server" });
+      res.status(500).json({ error: "Failed to connect to server" });
     }
   } catch (error) {
     console.error("Error in server connection endpoint:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
